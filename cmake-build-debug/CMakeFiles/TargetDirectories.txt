@@ -1,0 +1,3 @@
+C:/Users/Mateus/CLionProjects/trabSO/cmake-build-debug/CMakeFiles/trabSO.dir
+C:/Users/Mateus/CLionProjects/trabSO/cmake-build-debug/CMakeFiles/edit_cache.dir
+C:/Users/Mateus/CLionProjects/trabSO/cmake-build-debug/CMakeFiles/rebuild_cache.dir
