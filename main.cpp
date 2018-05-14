@@ -13,6 +13,8 @@ using namespace std;
 
 sem_t cozinha;
 sem_t buffet;
+int countCozinha;
+int countBuffet;
 
 class Cozinha{ //buffer
 public:
@@ -25,7 +27,7 @@ public:
     int tamBufferCozinha;
     int in;
     int out;
-    int countCozinha;
+//    volatile int countCozinha;
 };
 
 class Buffet{ //Buffer
@@ -38,7 +40,7 @@ public:
     int tamBufferBuffet;
     int in;
     int out;
-    int countBuffet;
+//    int countBuffet;
 };
 
 class Cozinheiro{ //Produtor do buffer cozinha
@@ -46,9 +48,8 @@ public:
     Cozinheiro(){};
     Cozinha a;
     Cozinheiro(Cozinha a);
-    void * cozinhando(void *pVoid);
-    string panela;
-
+    static void * cozinhando(void *pVoid);
+    void * testing(void *pVoid);
 };
 
 class Clientes{ //Consumidor do buffer buffet
@@ -56,7 +57,8 @@ public:
     Clientes(){};
     Buffet a;
     Clientes(Buffet a);
-    void servindo();
+    static void * servindo(void *pVoid);
+    void * chamaServindo(void *pVoid);
 };
 
 class Garcons{ //Consumidor do buffer cozinha e produtor do buffer buffet
@@ -65,8 +67,8 @@ public:
     Cozinha a;
     Buffet b;
     Garcons(Cozinha a, Buffet b);
-    void repondo(Cozinha a, Buffet b);
-
+    static void *repondo( void *pVoid);
+    void *teste(void *pVoid);
 };
 
 
@@ -89,13 +91,16 @@ void Cozinha::produzCozinha() {
     in = (in + 1) % tamBufferCozinha;
     int sem_wait(sem_t &cozinha);
     countCozinha++;
-    cout<< "Poduziu Cozinha" << endl;
+    cout<< "Poduziu Cozinha" << countCozinha << this << endl;
     int sem_post(sem_t &cozinha);
 }
 
 void Cozinha::consomeCozinha() {
     int retira_bandeja = 0;
-    while(countCozinha == 0);
+    while(countCozinha == 0) {
+        cout << countCozinha <<  this;  sleep(1);
+        fflush(stdout);
+    }
 
     retira_bandeja = bufferCozinha[out];
     out = (out + 1) % tamBufferCozinha;
@@ -145,10 +150,13 @@ void  Buffet::consomeBuffet() {
 
 Cozinheiro::Cozinheiro(Cozinha a) {
     this->a = a;
-    panela = "tramontina";
 }
 
 void * Cozinheiro::cozinhando(void *pVoid) {
+    reinterpret_cast<Cozinheiro*>(pVoid)->testing(nullptr);
+}
+
+void * Cozinheiro::testing(void *pVoid){
     for(int i = 0 ; i < 10 ; i++){
         a.produzCozinha();
         cout << "Cozinheiro cozinhou" << endl;
@@ -161,10 +169,14 @@ Clientes::Clientes(Buffet a){
     this->a = a;
 }
 
-void Clientes::servindo(){
+void * Clientes::servindo(void *pVoid){
+    reinterpret_cast<Clientes*>(pVoid)->chamaServindo(nullptr);
+}
+
+void * Clientes::chamaServindo(void *pVoid){
     for(int i = 0 ; i < 10 ; i++){
         a.consomeBuffet();
-        cout << "Cliente serviu" << endl;
+        cout << "Cliente se serviu!" << endl;
     }
 }
 
@@ -175,7 +187,11 @@ Garcons::Garcons(Cozinha a, Buffet b){
     this->b = b;
 }
 
-void Garcons::repondo(Cozinha a, Buffet b){
+void * Garcons::repondo(void * pVoid){
+    reinterpret_cast<Garcons*>(pVoid)->teste(nullptr);
+}
+
+void * Garcons::teste(void *pVoid){
     for(int i = 0 ; i < 10; i++){
         a.consomeCozinha();
         cout << "Garcon pegou da cozinha" << endl;
@@ -184,54 +200,41 @@ void Garcons::repondo(Cozinha a, Buffet b){
     }
 }
 
-void * teste(void *pVoid){
-    cout << "XABLAU";
-}
-
 // ------------------------------------- Fim dos metodos-----------------------------
 int main() {
     vector<Cozinheiro> chefs;
     vector<Garcons> campeoes;
-    vector<Clientes> usuarios;
-
-
+    vector<Clientes> donoDaRazao;
 
     int tam_bufferCozinha = 5;
     int tam_bufferBuffet = 5;
-//
-//    cout << "Tamanho do buffer Cozinha: ";
-//    cin >> tam_bufferCozinha << endl;
-//
-//    cout << "Tamanho do buffer Buffet: ";
-//    cin >> tam_bufferBuffet << endl;
 
     Cozinha a = Cozinha(tam_bufferCozinha);
     Buffet b = Buffet(tam_bufferBuffet);
 
-    pthread_t cozinheiros[3], garcons[3], clientes[3];
+    pthread_t cozinheiros[3], garcons[3], clientes[3]; //nome das threads
 
-    sem_init(&cozinha, 0, tam_bufferCozinha);
+    sem_init(&cozinha, 0, tam_bufferCozinha); //iniciaçao das threads
     sem_init(&buffet, 0, tam_bufferBuffet);
 
 
-    for(int i = 0; i < 10; i++) {
+    for(int i = 0; i < 10; i++) { //insere o buffer no vetor
         chefs.push_back(Cozinheiro(a));
-        cout<<chefs[i].panela;
+        campeoes.push_back(Garcons(a,b));
+        donoDaRazao.push_back(Clientes(b));
     }
 
-    pthread_create(&cozinheiros[0], NULL,breno.cozinhando , NULL);
-    pthread_create(&cozinheiros[1], NULL,chico.cozinhando , NULL);
-    pthread_create(&cozinheiros[2], NULL,morilu.cozinhando , NULL);
+    for(int i = 0; i < 2 ; i++){ //cria as threadas nos metodos escolhidos
+        pthread_create(&cozinheiros[i], nullptr, &Cozinheiro::cozinhando, &chefs[i]);
+        pthread_create(&garcons[i], nullptr, &Garcons::repondo, &campeoes[i]);
+        pthread_create(&clientes[i], nullptr, &Clientes::servindo, &donoDaRazao[i]);
 
+    }
 
-    //}
-//    for(int i=0;i < 3;i++)
-//        pthread_join(cozinheiros[i], NULL);
-
-//    for(int i = 0; i < 10; i++)
-//        pthread_create(&garcons, NULL, (void)repondo , NULL);
-
-
-
+    for(int i=0 ;i < 2;i++) { // espera as threads terminarem a execuçao
+        pthread_join(cozinheiros[i], nullptr);
+        pthread_join(garcons[i], nullptr);
+        pthread_join(clientes[i], nullptr);
+    }
     return 0;
 }
